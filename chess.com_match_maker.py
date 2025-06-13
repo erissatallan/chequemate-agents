@@ -1,3 +1,10 @@
+"""
+This is a sophisticated matchmaking system that goes beyond simple rating-based
+matching to create more engaging and balanced chess games.
+It uses the Elo rating system, Eco codes, time controls, gaming style vector,
+and recent win streak to find the best opponent for a given player.
+"""
+
 import cloudscraper
 import psycopg2
 import psycopg2.extras
@@ -6,7 +13,7 @@ import re
 from collections import Counter
 from datetime import timezone, datetime
 
-# Active users
+# Active users: will be fetched from a list of registered users
 USERS = [
     "Whisers1", "PNiskanen", "guessworkceoke",
     "ashot2016", "toshevgeorgi70", "TakeMyCheetos"
@@ -15,7 +22,7 @@ USERS = [
 # Eco codes to track for style vector
 ECO_CODES = [f"{c}{i:02d}" for c in "ABCDE" for i in range(100)]  
 
-# Weights for matchmaking (user will tweak later)
+# Weights for matchmaking (@TODO: perform A/B testing to improve)
 WEIGHTS = {
     "w_rating": 0.5,
     "w_streak": 0.2,
@@ -48,7 +55,7 @@ def get_current_rating(username, games):
     return me["rating"]  # int
 
 
-def get_streak(username, games, max_checks=10):
+def get_streak(username, games, max_checks=30):
     """
     Compute win(+)/loss(-) streak over last up to `max_checks` games.
     """
@@ -76,7 +83,10 @@ def get_time_preferences(games):
 
 def get_style_vector(games):
     """
-    Build normalized frequency vector over tracked ECO_CODES.
+    Build normalized frequency vector over tracked ECO_CODES
+    Note: the length of the vector vec quantifies the diversity of the player's style
+    @TODO: use this to make smart (AI) predictions on how to improve their gameplay
+    @TODO: make visual of the style vector for user consumption; explanations
     """
     codes = [
         re.search(r'\[ECO "([A-E]\d{2})"\]', g["pgn"]).group(1)
@@ -118,7 +128,7 @@ def persist_features(conn, username, feats):
 
 def load_all_features(conn):
     """
-    Load all player_features rows into a dict username→feat_dict.
+    Load all player_features rows into a dict username → feat_dict
     """
     with conn.cursor(cursor_factory=psycopg2.extras.DictCursor) as cur:
         cur.execute("SELECT * FROM player_features;")
